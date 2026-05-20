@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:linear-gradient(135deg,#8B0000 0%,#C00000 50%,#D32F2F 100%); width:390px; height:844px; display:flex; align-items:center; justify-content:center; }
+.container { width:100%; padding:24px 20px; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:space-between; padding-top:50px; padding-bottom:30px; }
+
+/* Countdown */
+.countdown-wrap { position:relative; width:90px; height:90px; }
+svg.ring { position:absolute; top:0; left:0; transform:rotate(-90deg); }
+.countdown-num { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:32px; font-weight:900; color:#fff; }
+.countdown-txt { color:rgba(255,255,255,0.8); font-size:12px; font-weight:500; margin-top:8px; text-align:center; }
+
+/* Icon */
+.pulse-icon { width:110px; height:110px; background:rgba(255,255,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:60px; animation:scale 0.8s ease-in-out infinite alternate; }
+@keyframes scale { from{transform:scale(1)} to{transform:scale(1.12)} }
+
+/* Badge */
+.urgency-badge { background:#fff; color:#C00000; padding:6px 16px; border-radius:20px; font-size:11px; font-weight:800; letter-spacing:2px; }
+.main-title { font-size:22px; font-weight:900; color:#fff; letter-spacing:1px; }
+.sub-title { font-size:13px; color:rgba(255,255,255,0.7); font-weight:600; }
+
+/* Info card */
+.info-card { width:100%; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:18px; }
+.info-row { display:flex; align-items:flex-start; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.15); }
+.info-row:last-child { border-bottom:none; }
+.info-icon { font-size:16px; margin-right:10px; color:rgba(255,255,255,0.7); width:20px; }
+.info-label { font-size:12px; color:rgba(255,255,255,0.7); width:68px; flex-shrink:0; }
+.info-val { font-size:13px; color:#fff; font-weight:600; flex:1; text-align:right; }
+
+/* Buttons */
+.btn-row { display:flex; gap:12px; width:100%; }
+.decline-btn { flex:1; background:transparent; border:1.5px solid rgba(255,255,255,0.4); color:#fff; border-radius:14px; padding:16px; font-size:14px; font-weight:600; cursor:pointer; }
+.accept-btn { flex:2; background:#fff; color:#C00000; border:none; border-radius:14px; padding:16px; font-size:14px; font-weight:800; cursor:pointer; letter-spacing:0.5px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <!-- Countdown -->
+  <div>
+    <div class="countdown-wrap">
+      <svg class="ring" width="90" height="90">
+        <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="5"/>
+        <circle cx="45" cy="45" r="40" fill="none" stroke="white" stroke-width="5"
+          stroke-dasharray="251" stroke-dashoffset="67" stroke-linecap="round"/>
+      </svg>
+      <div class="countdown-num">23</div>
+    </div>
+    <div class="countdown-txt">Respond within 23 seconds</div>
+  </div>
+
+  <!-- Icon & title -->
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <div class="pulse-icon">🚨</div>
+    <div class="urgency-badge">CRITICAL</div>
+    <div class="main-title">EMERGENCY REQUEST</div>
+    <div class="sub-title">Type A · ICU Ambulance</div>
+  </div>
+
+  <!-- Info card -->
+  <div class="info-card">
+    <div class="info-row">
+      <span class="info-icon">👤</span>
+      <span class="info-label">Patient</span>
+      <span class="info-val">Suresh Mehta</span>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">📞</span>
+      <span class="info-label">Phone</span>
+      <span class="info-val">+91 98765 43210</span>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">ℹ️</span>
+      <span class="info-label">Details</span>
+      <span class="info-val">Cardiac arrest, unconscious on floor</span>
+    </div>
+    <div class="info-row">
+      <span class="info-icon">🏥</span>
+      <span class="info-label">Hospital</span>
+      <span class="info-val">Apex City Hospital</span>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-row">
+    <button class="decline-btn">Decline</button>
+    <button class="accept-btn">ACCEPT REQUEST</button>
+  </div>
+</div>
+</body>
+</html>

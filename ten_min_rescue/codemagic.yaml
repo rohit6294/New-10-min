@@ -1,0 +1,94 @@
+workflows:
+  ios-driver-app:
+    name: 10MinRescue iOS (Driver App)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: 3.24.0
+      xcode: latest
+      cocoapods: default
+      groups:
+        # Define in Codemagic → Environment variables (Group "ios_signing"):
+        #   APP_STORE_CONNECT_PRIVATE_KEY  (App Store Connect API key, .p8 contents)
+        #   APP_STORE_CONNECT_KEY_IDENTIFIER
+        #   APP_STORE_CONNECT_ISSUER_ID
+        #   CERTIFICATE_PRIVATE_KEY        (PEM-encoded distribution cert key)
+        #   BUNDLE_ID                      (e.g. com.tenminrescue.driver)
+        - ios_signing
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+    scripts:
+      - name: Scaffold iOS folder if missing
+        script: |
+          set -euo pipefail
+          if [ ! -d ios ]; then
+            echo "▶ No ios/ folder — running flutter create --platforms=ios"
+            flutter create --platforms=ios --org com.tenminrescue --project-name ten_min_rescue .
+          fi
+
+      - name: Overlay custom Info.plist + AppDelegate
+        script: |
+          set -euo pipefail
+          cp ios_overrides/Info.plist ios/Runner/Info.plist
+          cp ios_overrides/AppDelegate.swift ios/Runner/AppDelegate.swift
+          # Append our Podfile additions (push notification & iOS 13 deployment target).
+          if ! grep -q "10MIN_RESCUE_PODFILE_PATCH" ios/Podfile 2>/dev/null; then
+            cat ios_overrides/Podfile.append >> ios/Podfile
+          fi
+
+      - name: Install GoogleService-Info.plist
+        script: |
+          set -euo pipefail
+          # The plist is stored as a Codemagic file-typed env var
+          # (Environment variables → ADD → "Secure file" → name = GOOGLE_SERVICE_INFO_PLIST).
+          if [ -n "${GOOGLE_SERVICE_INFO_PLIST:-}" ]; then
+            echo "${GOOGLE_SERVICE_INFO_PLIST}" | base64 -d > ios/Runner/GoogleService-Info.plist
+          else
+            echo "⚠ GOOGLE_SERVICE_INFO_PLIST not set — Firebase will not initialise on iOS."
+            exit 1
+          fi
+
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "${BUNDLE_ID}" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: flutter pub get
+        script: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios && pod install
+
+      - name: Flutter analyze
+        script: flutter analyze
+        ignore_failure: true
+
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-name=1.0.0 \
+            --build-number=$(($(app-store-connect get-latest-app-store-build-number "$BUNDLE_ID") + 1)) \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - 10MinRescue Internal

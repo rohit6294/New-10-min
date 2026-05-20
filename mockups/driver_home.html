@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=390, initial-scale=1">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#F4F5F7; width:390px; min-height:844px; }
+.topbar { background:#fff; padding:12px 16px; display:flex; align-items:center; gap:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.logo { width:40px; height:40px; background:#C00000; border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:20px; }
+.logo-text { font-size:14px; font-weight:800; color:#0F3D6E; }
+.logo-text span { color:#C00000; }
+.sub { font-size:11px; color:#999; }
+.hamburger { margin-left:auto; font-size:22px; color:#0F3D6E; cursor:pointer; }
+
+.content { padding:16px; }
+
+/* Status Hero */
+.status-hero { background:#fff; border-radius:20px; padding:20px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.status-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.status-label { font-size:13px; color:#666; font-weight:500; }
+.toggle { width:60px; height:30px; background:#C00000; border-radius:15px; position:relative; cursor:pointer; transition:0.3s; }
+.toggle-knob { width:24px; height:24px; background:#fff; border-radius:50%; position:absolute; top:3px; right:3px; box-shadow:0 2px 4px rgba(0,0,0,0.2); }
+.status-badge { display:inline-flex; align-items:center; gap:6px; background:#E8F5E9; color:#2E7D32; padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; margin-bottom:12px; }
+.green-dot { width:8px; height:8px; background:#4CAF50; border-radius:50%; animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.status-big { font-size:22px; font-weight:900; color:#0F3D6E; }
+.amb-chip { display:inline-flex; align-items:center; gap:6px; background:#FFF0F0; color:#C00000; padding:5px 12px; border-radius:12px; font-size:12px; font-weight:700; margin-top:8px; }
+
+/* Stats grid */
+.stats { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+.stat-card { background:#fff; border-radius:16px; padding:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+.stat-icon { width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; margin-bottom:8px; }
+.stat-val { font-size:22px; font-weight:800; color:#0F3D6E; }
+.stat-lbl { font-size:11px; color:#999; margin-top:2px; }
+
+/* SOS Alert Card */
+.sos-alert { background:linear-gradient(135deg,#C00000,#8B0000); border-radius:20px; padding:16px; margin-bottom:16px; color:#fff; }
+.sos-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.sos-badge { background:rgba(255,255,255,0.2); padding:4px 10px; border-radius:20px; font-size:11px; font-weight:700; letter-spacing:1px; }
+.sos-dist { font-size:12px; color:rgba(255,255,255,0.8); }
+.sos-title { font-size:16px; font-weight:800; margin-bottom:4px; }
+.sos-desc { font-size:12px; color:rgba(255,255,255,0.8); margin-bottom:12px; }
+.sos-info { display:flex; gap:8px; margin-bottom:12px; }
+.sos-chip { background:rgba(255,255,255,0.15); border-radius:8px; padding:6px 10px; font-size:11px; font-weight:600; }
+.accept-btn { width:100%; background:#fff; color:#C00000; border:none; border-radius:14px; padding:14px; font-size:14px; font-weight:800; cursor:pointer; letter-spacing:0.5px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">🚑</div>
+  <div>
+    <div class="logo-text">10Min<span>Rescue</span></div>
+    <div class="sub">Hello, Rahul Kumar</div>
+  </div>
+  <div class="hamburger">☰</div>
+</div>
+
+<div class="content">
+  <!-- SOS Alert -->
+  <div class="sos-alert">
+    <div class="sos-top">
+      <span class="sos-badge">🚨 NEW SOS ALERT</span>
+      <span class="sos-dist">📍 1.4 km away</span>
+    </div>
+    <div class="sos-title">Cardiac Arrest — Patient unconscious</div>
+    <div class="sos-desc">Father collapsed, severe chest pain, struggling to breathe</div>
+    <div class="sos-info">
+      <div class="sos-chip">🔴 CRITICAL</div>
+      <div class="sos-chip">Type A · ICU</div>
+      <div class="sos-chip">🏥 City Hospital</div>
+    </div>
+    <button class="accept-btn">ACCEPT REQUEST →</button>
+  </div>
+
+  <!-- Status Hero -->
+  <div class="status-hero">
+    <div class="status-row">
+      <span class="status-label">Availability Status</span>
+      <div class="toggle"><div class="toggle-knob"></div></div>
+    </div>
+    <div class="status-badge"><div class="green-dot"></div> ONLINE & AVAILABLE</div>
+    <div class="status-big">You're Active</div>
+    <div style="font-size:12px;color:#999;margin-top:4px;">Waiting for emergency requests nearby</div>
+    <div class="amb-chip">🚑 Type A · ICU Ambulance</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFF0F0;">🚨</div>
+      <div class="stat-val">3</div>
+      <div class="stat-lbl">Today's Trips</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E3F2FD;">📍</div>
+      <div class="stat-val">1.4 km</div>
+      <div class="stat-lbl">Nearest Request</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">✅</div>
+      <div class="stat-val">12</div>
+      <div class="stat-lbl">Total Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFF8E1;">⭐</div>
+      <div class="stat-val">4.8</div>
+      <div class="stat-lbl">My Rating</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

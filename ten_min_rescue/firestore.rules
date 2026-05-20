@@ -1,0 +1,136 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return request.auth.uid == uid;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isDriver() {
+      return isSignedIn() && getUserRole() == "driver";
+    }
+
+    function isHospital() {
+      return isSignedIn() && getUserRole() == "hospital";
+    }
+
+    function isFleetAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/ambulance_fleets/$(request.auth.uid));
+    }
+
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ── users/{uid} ───────────────────────────────────────────────────────────
+    match /users/{uid} {
+      allow read: if isSignedIn() && isOwner(uid);
+      allow create: if isSignedIn() && isOwner(uid);
+      allow update: if isSignedIn() && isOwner(uid);
+    }
+
+    // ── drivers/{uid} ─────────────────────────────────────────────────────────
+    match /drivers/{uid} {
+      // Driver can read/write their own profile.
+      allow read, write: if isSignedIn() && isOwner(uid);
+      // Hospitals can read driver profiles (for tracking).
+      allow read: if isHospital();
+      // Fleet admins can read all drivers (needed to search by phone before
+      // linking) and can update fleetId/fleetName on a driver that either
+      // belongs to them or is unaffiliated. Restricted to those keys only.
+      allow read: if isFleetAdmin();
+      allow update: if isFleetAdmin()
+        && (resource.data.fleetId == null
+            || resource.data.fleetId == request.auth.uid)
+        && changedKeys().hasOnly(['fleetId', 'fleetName', 'fleetLinkedAt']);
+    }
+
+    // ── hospitals/{uid} ───────────────────────────────────────────────────────
+    match /hospitals/{uid} {
+      // Hospital can read/write their own profile.
+      allow read, write: if isSignedIn() && isOwner(uid);
+      // Drivers can read hospital profiles (bed availability + navigation).
+      allow read: if isDriver();
+    }
+
+    // ── ambulance_fleets/{fleetUid} ───────────────────────────────────────────
+    // NGO / fleet owner profile. Created by the 10MinRescue admin team.
+    match /ambulance_fleets/{fleetUid} {
+      allow read: if isSignedIn() && isOwner(fleetUid);
+      // Fleet owner can rotate their own join code + own contact fields, but
+      // cannot escalate by editing identity-establishing fields.
+      allow update: if isSignedIn() && isOwner(fleetUid)
+        && changedKeys().hasOnly([
+          'joinCode', 'joinCodeUpdatedAt',
+          'name', 'contactPerson', 'phone', 'email', 'address', 'updatedAt'
+        ]);
+    }
+
+    // ── rescue_requests/{requestId} ───────────────────────────────────────────
+    match /rescue_requests/{requestId} {
+      // Public emergency intake (the web SOS form is unauthenticated).
+      // Constrained so a new request can only enter the pipeline as a
+      // fresh, unassigned, pending request.
+      allow create: if request.resource.data.status == 'pending_driver'
+        && request.resource.data.assignedDriverId == null
+        && request.resource.data.assignedHospitalId == null;
+
+      // Single-document reads are public so a patient can track their
+      // ambulance using the (unguessable) request ID. Listing the whole
+      // collection stays restricted to drivers, hospitals, and fleet admins
+      // (fleet admins additionally narrow their queries by `assignedDriverId
+      // in <their drivers>` client-side).
+      allow get: if true;
+      allow list: if isDriver() || isHospital() || isFleetAdmin();
+
+      // A driver can claim an unassigned request and progress their trip.
+      allow update: if isDriver()
+        && (resource.data.assignedDriverId == null
+            || resource.data.assignedDriverId == request.auth.uid)
+        && changedKeys().hasOnly([
+          'assignedDriverId', 'assignedDriverAcceptedAt', 'status',
+          'patientPickedUpAt', 'awaitingHospitalChoiceAt',
+          'assignedHospitalId', 'hospitalChosenBy',
+          'assignedHospitalAcceptedAt', 'inTransitAt', 'completedAt',
+          'driverCancellationReason', 'driverCancelledAt', 'updatedAt'
+        ]);
+
+      // The receiving hospital can mark its own incoming request.
+      allow update: if isHospital()
+        && resource.data.assignedHospitalId == request.auth.uid
+        && changedKeys().hasOnly([
+          'status', 'hospitalAcceptedAt', 'patientReceivedAt',
+          'hospitalAckAt', 'hospitalAckBy', 'updatedAt'
+        ]);
+
+      // Cloud Functions (Admin SDK) bypass these rules entirely.
+    }
+
+    // ── location_updates/{driverId} ───────────────────────────────────────────
+    match /location_updates/{driverId} {
+      // Driver writes their own live location.
+      allow write: if isSignedIn() && isOwner(driverId);
+      // Single-document reads are public so the patient tracking page can
+      // follow the ambulance (the document holds only coordinates).
+      allow get: if true;
+      allow list: if isHospital() || isDriver();
+    }
+
+    // ── sos_requests/{sosId} ──────────────────────────────────────────────────
+    // Legacy collection — superseded by rescue_requests. Kept readable so any
+    // in-flight legacy listeners do not error during the transition.
+    match /sos_requests/{sosId} {
+      allow read: if isDriver() || isHospital();
+    }
+  }
+}

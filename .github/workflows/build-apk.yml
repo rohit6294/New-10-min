@@ -1,0 +1,92 @@
+name: Build Android APK
+
+# Builds the driver/hospital Flutter app as an Android APK and publishes it
+# both as a workflow artifact (always) and as a GitHub Release asset (when
+# you push a `v*` tag). End users can download from either spot.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths:
+      - 'ten_min_rescue/**'
+      - '.github/workflows/build-apk.yml'
+  pull_request:
+    paths:
+      - 'ten_min_rescue/**'
+  workflow_dispatch:
+    # Lets you trigger a build on demand from the Actions tab.
+
+permissions:
+  contents: write   # required to upload release assets
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ten_min_rescue
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+          cache: true
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: flutter pub get
+        run: flutter pub get
+
+      - name: flutter analyze
+        run: flutter analyze
+        continue-on-error: true   # mirrors local: only infos/warnings today
+
+      - name: Build APK (release, split per ABI)
+        run: |
+          flutter build apk --release --split-per-abi
+          flutter build apk --release   # also produce a universal APK
+
+      - name: List built APKs
+        run: ls -lh build/app/outputs/flutter-apk/
+
+      - name: Upload APKs as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ten_min_rescue-apk-${{ github.sha }}
+          path: ten_min_rescue/build/app/outputs/flutter-apk/*.apk
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Publish to GitHub Release (tagged builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ten_min_rescue/build/app/outputs/flutter-apk/app-release.apk
+            ten_min_rescue/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+            ten_min_rescue/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+            ten_min_rescue/build/app/outputs/flutter-apk/app-x86_64-release.apk
+          generate_release_notes: true
+          body: |
+            ## 📱 10Min Rescue — Driver / Hospital APK
+
+            **Most phones:** download `app-arm64-v8a-release.apk` (smaller).
+            **Older 32-bit phones:** download `app-armeabi-v7a-release.apk`.
+            **Not sure?** download `app-release.apk` (universal, works on all devices, larger).
+
+            Install: open the APK on your phone. You'll need to allow
+            "Install from unknown sources" the first time.

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#F4F5F7; width:1280px; }
+
+/* Header */
+header { background:#fff; border-bottom:1px solid #eee; height:64px; display:flex; align-items:center; padding:0 24px; box-shadow:0 1px 4px rgba(0,0,0,0.05); position:sticky; top:0; z-index:10; justify-content:space-between; }
+.logo { display:flex; align-items:center; gap:10px; }
+.logo-icon { width:36px; height:36px; background:#C00000; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; }
+.logo-name { font-size:13px; font-weight:800; color:#0F3D6E; }
+.logo-name span { color:#C00000; }
+.hospital-name { font-size:11px; color:#999; }
+.new-badge { background:#C00000; color:#fff; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.signout { color:#999; font-size:13px; cursor:pointer; }
+
+.main { max-width:1200px; margin:0 auto; padding:24px; }
+
+/* Stats row */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:24px; }
+.stat { background:#fff; border-radius:16px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.05); border:1px solid #f0f0f0; }
+.stat.urgent { border-color:#FFCDD2; box-shadow:0 0 0 3px #FFEBEE; }
+.stat-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.stat-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.red-dot { width:10px; height:10px; background:#C00000; border-radius:50%; animation:pulse 1.2s infinite; }
+.stat-num { font-size:26px; font-weight:800; color:#0F3D6E; }
+.stat-lbl { font-size:12px; color:#999; margin-top:2px; }
+
+/* Bed Panel */
+.bed-panel { background:#fff; border-radius:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border:1px solid #f0f0f0; padding:20px 24px; margin-bottom:24px; }
+.bed-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+.bed-title { font-size:17px; font-weight:800; color:#0F3D6E; display:flex; align-items:center; gap:8px; }
+.bed-sub { font-size:12px; color:#999; margin-top:2px; }
+.set-btn { background:#0F3D6E; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer; }
+.rating { color:#F59E0B; font-size:14px; font-weight:700; margin-right:10px; }
+
+.beds-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.bed-row { border-radius:16px; padding:18px; border:2px solid; }
+.bed-row.icu { background:#FFF5F5; border-color:#FFCDD2; }
+.bed-row.adv { background:#FFFDE7; border-color:#FFF176; }
+.bed-row.nor { background:#F1F8E9; border-color:#DCEDC8; }
+
+.bed-type { font-size:11px; font-weight:700; letter-spacing:1px; margin-bottom:8px; }
+.bed-type.icu { color:#C00000; }
+.bed-type.adv { color:#F57F17; }
+.bed-type.nor { color:#388E3C; }
+
+.bed-count-row { display:flex; align-items:center; justify-content:space-between; }
+.bed-fraction { font-size:28px; font-weight:900; color:#0F3D6E; }
+.bed-fraction span { font-size:14px; font-weight:500; color:#999; }
+.controls { display:flex; gap:8px; align-items:center; }
+.ctrl-btn { width:36px; height:36px; border-radius:10px; border:none; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:700; cursor:pointer; }
+.minus-btn { background:#FFE5E5; color:#C00000; }
+.plus-btn { background:#E8F5E9; color:#388E3C; }
+.bed-bar-wrap { margin-top:10px; height:6px; background:#E0E0E0; border-radius:3px; overflow:hidden; }
+.bed-bar { height:100%; border-radius:3px; }
+.icu-bar { background:#C00000; width:57%; }
+.adv-bar { background:#F57F17; width:75%; }
+.nor-bar { background:#388E3C; width:90%; }
+.bed-note { font-size:10px; color:#999; margin-top:6px; }
+
+/* Tabs */
+.tabs { display:flex; background:#fff; border-radius:16px; padding:6px; box-shadow:0 2px 6px rgba(0,0,0,0.05); margin-bottom:20px; gap:4px; }
+.tab { flex:1; padding:10px 16px; border-radius:12px; text-align:center; font-size:13px; font-weight:600; cursor:pointer; color:#999; border:none; background:transparent; }
+.tab.active { background:#0F3D6E; color:#fff; box-shadow:0 2px 8px rgba(15,61,110,0.25); }
+.tab-badge { background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:11px; margin-left:4px; }
+.tab-badge.red { background:#FFCDD2; color:#C00000; }
+
+/* Request cards */
+.cards { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+.card { background:#fff; border-radius:20px; border:2px solid #f0f0f0; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+.card.incoming { border-color:#FFCDD2; box-shadow:0 0 0 3px #FFEBEE; }
+.card-top { padding:10px 14px; display:flex; align-items:center; justify-content:space-between; }
+.card-top.red-bg { background:#FFF5F5; }
+.card-top.gray-bg { background:#F9F9F9; }
+.status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
+.status-txt { font-size:11px; font-weight:700; }
+.time-txt { font-size:11px; color:#999; }
+.card-body { padding:14px; }
+.patient-row { display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; }
+.patient-icon { width:40px; height:40px; background:#F4F5F7; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+.patient-name { font-size:14px; font-weight:700; color:#0F3D6E; }
+.patient-phone { font-size:12px; color:#999; }
+.info-chips { margin-bottom:12px; }
+.chip { font-size:11px; color:#666; margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+.card-btns { display:flex; gap:8px; }
+.view-btn { flex:1; border:1px solid #e0e0e0; background:#fff; color:#0F3D6E; border-radius:12px; padding:8px; font-size:12px; font-weight:600; cursor:pointer; }
+.acc-btn { flex:1; background:#C00000; color:#fff; border:none; border-radius:12px; padding:8px; font-size:12px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">+</div>
+    <div>
+      <div class="logo-name">10Min<span>Rescue</span></div>
+      <div class="hospital-name">Apex City Hospital</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span class="new-badge">2 New</span>
+    <span class="signout">Sign Out →</span>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat urgent">
+      <div class="stat-top"><div class="stat-icon" style="background:#FFF0F0;">🔔</div><div class="red-dot"></div></div>
+      <div class="stat-num">2</div>
+      <div class="stat-lbl">Incoming</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-icon" style="background:#E3F2FD;">🚑</div></div>
+      <div class="stat-num">1</div>
+      <div class="stat-lbl">In Transit</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-icon" style="background:#E8F5E9;">✅</div></div>
+      <div class="stat-num">5</div>
+      <div class="stat-lbl">Completed Today</div>
+    </div>
+    <div class="stat">
+      <div class="stat-top"><div class="stat-icon" style="background:#F3F0FF;">📋</div></div>
+      <div class="stat-num">8</div>
+      <div class="stat-lbl">Total Requests</div>
+    </div>
+  </div>
+
+  <!-- Bed Panel -->
+  <div class="bed-panel">
+    <div class="bed-header">
+      <div>
+        <div class="bed-title">🛏 Bed Availability</div>
+        <div class="bed-sub">Update in real-time. Patients see this when choosing hospital on /sos.</div>
+      </div>
+      <div style="display:flex;align-items:center;">
+        <span class="rating">⭐ 4.7</span>
+        <button class="set-btn">Set Total Beds</button>
+      </div>
+    </div>
+    <div class="beds-grid">
+      <!-- ICU -->
+      <div class="bed-row icu">
+        <div class="bed-type icu">ICU BEDS (Type A)</div>
+        <div class="bed-count-row">
+          <div>
+            <div class="bed-fraction">4 <span>/ 7 total</span></div>
+            <div style="font-size:11px;color:#C00000;font-weight:600;">4 available</div>
+          </div>
+          <div class="controls">
+            <button class="ctrl-btn minus-btn">−</button>
+            <button class="ctrl-btn plus-btn">+</button>
+          </div>
+        </div>
+        <div class="bed-bar-wrap"><div class="bed-bar icu-bar"></div></div>
+        <div class="bed-note">Tap − when a patient is admitted, + when discharged</div>
+      </div>
+      <!-- Advanced -->
+      <div class="bed-row adv">
+        <div class="bed-type adv">ADVANCED BEDS (Type B)</div>
+        <div class="bed-count-row">
+          <div>
+            <div class="bed-fraction">6 <span>/ 8 total</span></div>
+            <div style="font-size:11px;color:#F57F17;font-weight:600;">6 available</div>
+          </div>
+          <div class="controls">
+            <button class="ctrl-btn minus-btn">−</button>
+            <button class="ctrl-btn plus-btn">+</button>
+          </div>
+        </div>
+        <div class="bed-bar-wrap"><div class="bed-bar adv-bar"></div></div>
+        <div class="bed-note">Tap − when a patient is admitted, + when discharged</div>
+      </div>
+      <!-- Normal -->
+      <div class="bed-row nor">
+        <div class="bed-type nor">NORMAL BEDS (Type C)</div>
+        <div class="bed-count-row">
+          <div>
+            <div class="bed-fraction">9 <span>/ 10 total</span></div>
+            <div style="font-size:11px;color:#388E3C;font-weight:600;">9 available</div>
+          </div>
+          <div class="controls">
+            <button class="ctrl-btn minus-btn">−</button>
+            <button class="ctrl-btn plus-btn">+</button>
+          </div>
+        </div>
+        <div class="bed-bar-wrap"><div class="bed-bar nor-bar"></div></div>
+        <div class="bed-note">Tap − when a patient is admitted, + when discharged</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active">Incoming <span class="tab-badge">2</span></button>
+    <button class="tab">In Transit <span class="tab-badge red" style="background:#DDEEFF;color:#1565C0;">1</span></button>
+    <button class="tab">History</button>
+  </div>
+
+  <!-- Cards -->
+  <div class="cards">
+    <div class="card incoming">
+      <div class="card-top red-bg">
+        <div><span class="status-dot" style="background:#C00000;animation:pulse 1.2s infinite;"></span><span class="status-txt" style="color:#C00000;">Ambulance Coming</span></div>
+        <span class="time-txt">2m ago</span>
+      </div>
+      <div class="card-body">
+        <div class="patient-row">
+          <div class="patient-icon">❤️</div>
+          <div><div class="patient-name">Suresh Mehta</div><div class="patient-phone">📞 +91 98765 43210</div></div>
+        </div>
+        <div class="info-chips">
+          <div class="chip">📍 22.5726, 88.3639</div>
+          <div class="chip">🚨 Cardiac Emergency</div>
+        </div>
+        <div class="card-btns"><button class="view-btn">View Details</button></div>
+      </div>
+    </div>
+    <div class="card incoming">
+      <div class="card-top red-bg">
+        <div><span class="status-dot" style="background:#C00000;animation:pulse 1.2s infinite;"></span><span class="status-txt" style="color:#C00000;">Ambulance Coming</span></div>
+        <span class="time-txt">5m ago</span>
+      </div>
+      <div class="card-body">
+        <div class="patient-row">
+          <div class="patient-icon">🤱</div>
+          <div><div class="patient-name">Priya Sharma</div><div class="patient-phone">📞 +91 77654 32100</div></div>
+        </div>
+        <div class="info-chips">
+          <div class="chip">📍 22.5731, 88.3650</div>
+          <div class="chip">🚑 Maternity Emergency</div>
+        </div>
+        <div class="card-btns"><button class="view-btn">View Details</button></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-top gray-bg">
+        <div><span class="status-dot" style="background:#1565C0;"></span><span class="status-txt" style="color:#1565C0;">In Transit</span></div>
+        <span class="time-txt">12m ago</span>
+      </div>
+      <div class="card-body">
+        <div class="patient-row">
+          <div class="patient-icon">🚗</div>
+          <div><div class="patient-name">Amit Roy</div><div class="patient-phone">📞 +91 98123 45678</div></div>
+        </div>
+        <div class="info-chips">
+          <div class="chip">📍 22.5740, 88.3700</div>
+          <div class="chip">🚑 Accident — Serious</div>
+        </div>
+        <div class="card-btns"><button class="view-btn">View Details</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

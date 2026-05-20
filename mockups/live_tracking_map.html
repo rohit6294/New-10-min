@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Segoe UI',sans-serif; background:#F4F5F7; width:390px; min-height:844px; }
+header { background:#0F3D6E; color:#fff; padding:14px 16px; display:flex; align-items:center; gap:10px; }
+.h-icon { width:36px; height:36px; background:#C00000; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; }
+.h-title { font-size:14px; font-weight:800; }
+.h-title span { color:#C00000; }
+.h-sub { font-size:10px; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:1px; }
+
+.main { padding:16px; }
+
+/* Status banner */
+.status-banner { border-radius:20px; padding:18px; margin-bottom:14px; border:2px solid rgba(76,175,80,0.3); background:rgba(76,175,80,0.08); position:relative; overflow:hidden; }
+.status-top { display:flex; align-items:center; gap:14px; }
+.status-icon { width:52px; height:52px; background:#4CAF50; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; flex-shrink:0; }
+.status-title { font-size:20px; font-weight:900; color:#2E7D32; }
+.status-sub { font-size:12px; color:#555; margin-top:2px; }
+.eta-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.eta-box { background:#fff; border-radius:12px; padding:12px; text-align:center; }
+.eta-label { font-size:10px; color:#999; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+.eta-val { font-size:24px; font-weight:900; color:#4CAF50; }
+
+/* Map */
+.map-wrap { background:#E8F4FD; border-radius:20px; height:260px; overflow:hidden; margin-bottom:14px; position:relative; border:1px solid #ddd; }
+.map-img { width:100%; height:100%; object-fit:cover; }
+.map-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.map-bg {
+  width:100%; height:100%;
+  background:
+    repeating-linear-gradient(0deg,rgba(0,0,0,0.03) 0,rgba(0,0,0,0.03) 1px,transparent 1px,transparent 40px),
+    repeating-linear-gradient(90deg,rgba(0,0,0,0.03) 0,rgba(0,0,0,0.03) 1px,transparent 1px,transparent 40px),
+    linear-gradient(135deg,#C8E6C9,#B3E5FC);
+  position:relative;
+}
+/* Fake roads */
+.road { position:absolute; background:rgba(255,255,255,0.6); border-radius:2px; }
+/* Route line */
+.route-line { position:absolute; background:#2563EB; opacity:0.85; border-radius:3px; }
+/* Markers */
+.marker { position:absolute; display:flex; align-items:center; justify-content:center; border-radius:50%; border:3px solid #fff; box-shadow:0 4px 12px rgba(0,0,0,0.3); font-size:20px; }
+.driver-marker { width:42px; height:42px; background:#2563EB; top:60px; left:60px; }
+.patient-marker { width:42px; height:42px; background:#C00000; bottom:60px; right:60px; animation:ping 1.5s infinite; }
+@keyframes ping { 0%{box-shadow:0 0 0 0 rgba(192,0,0,0.4)} 70%{box-shadow:0 0 0 20px rgba(192,0,0,0)} 100%{box-shadow:0 0 0 0 rgba(192,0,0,0)} }
+.map-label { position:absolute; background:#fff; border-radius:8px; padding:3px 8px; font-size:10px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.1); color:#333; }
+
+/* Driver card */
+.driver-card { background:#fff; border-radius:20px; padding:16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); border:1px solid #eee; }
+.green-pulse { display:inline-flex; align-items:center; gap:5px; color:#2E7D32; font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:10px; }
+.green-dot { width:7px; height:7px; background:#4CAF50; border-radius:50%; animation:pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.driver-row { display:flex; align-items:center; gap:14px; }
+.driver-avatar { width:52px; height:52px; background:#E3F2FD; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; }
+.driver-name { font-size:15px; font-weight:700; color:#0F3D6E; }
+.driver-info { font-size:12px; color:#999; }
+.call-btn { width:46px; height:46px; background:#4CAF50; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin-left:auto; box-shadow:0 4px 12px rgba(76,175,80,0.3); }
+
+/* Hospital card */
+.hosp-card { background:#fff; border-radius:20px; padding:16px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); border:1px solid #eee; }
+.blue-label { color:#1565C0; font-size:11px; font-weight:700; text-transform:uppercase; margin-bottom:10px; }
+.hosp-row { display:flex; align-items:center; gap:14px; }
+.hosp-avatar { width:52px; height:52px; background:#E3F2FD; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:26px; }
+.hosp-name { font-size:15px; font-weight:700; color:#0F3D6E; }
+.hosp-addr { font-size:12px; color:#999; }
+.call-btn-blue { width:46px; height:46px; background:#1565C0; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; margin-left:auto; box-shadow:0 4px 12px rgba(21,101,192,0.3); }
+
+/* Emergency strip */
+.ems { display:block; width:100%; background:#C00000; color:#fff; font-size:13px; font-weight:800; text-align:center; padding:16px; border-radius:16px; text-decoration:none; box-shadow:0 4px 14px rgba(192,0,0,0.3); }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-icon">+</div>
+  <div>
+    <div class="h-title">10Min<span>Rescue</span></div>
+    <div class="h-sub">Live tracking</div>
+  </div>
+</header>
+
+<div class="main">
+  <!-- Status -->
+  <div class="status-banner">
+    <div class="status-top">
+      <div class="status-icon">🚑</div>
+      <div>
+        <div class="status-title">Driver is on the way</div>
+        <div class="status-sub">Help is coming. Stay where you are.</div>
+      </div>
+    </div>
+    <div class="eta-row">
+      <div class="eta-box">
+        <div class="eta-label">Distance</div>
+        <div class="eta-val">1.4 km</div>
+      </div>
+      <div class="eta-box">
+        <div class="eta-label">ETA</div>
+        <div class="eta-val">~3 min</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div class="map-bg">
+      <!-- Fake roads -->
+      <div class="road" style="width:100%;height:12px;top:80px;opacity:0.7;"></div>
+      <div class="road" style="width:100%;height:10px;top:160px;opacity:0.5;"></div>
+      <div class="road" style="width:12px;height:100%;left:80px;opacity:0.7;"></div>
+      <div class="road" style="width:10px;height:100%;left:200px;opacity:0.5;"></div>
+      <!-- Route -->
+      <div class="route-line" style="width:5px;height:120px;left:80px;top:70px;transform:rotate(-20deg);"></div>
+      <div class="route-line" style="width:5px;height:80px;left:200px;top:120px;"></div>
+      <!-- Markers -->
+      <div class="marker driver-marker" style="top:52px;left:52px;">🚑</div>
+      <div class="map-label" style="top:28px;left:30px;">Driver — Rahul</div>
+      <div class="marker patient-marker" style="bottom:44px;right:44px;">📍</div>
+      <div class="map-label" style="bottom:20px;right:20px;">You are here</div>
+    </div>
+  </div>
+
+  <!-- Driver card -->
+  <div class="driver-card">
+    <div class="green-pulse"><div class="green-dot"></div> Driver Assigned</div>
+    <div class="driver-row">
+      <div class="driver-avatar">🚑</div>
+      <div>
+        <div class="driver-name">Rahul Kumar</div>
+        <div class="driver-info">MH-12-AB-3456 · Type A (ICU)</div>
+      </div>
+      <div class="call-btn">📞</div>
+    </div>
+  </div>
+
+  <!-- Hospital card -->
+  <div class="hosp-card">
+    <div class="blue-label">Selected Hospital</div>
+    <div class="hosp-row">
+      <div class="hosp-avatar">🏥</div>
+      <div>
+        <div class="hosp-name">Apex City Hospital</div>
+        <div class="hosp-addr">12, Park Street, Kolkata</div>
+      </div>
+      <div class="call-btn-blue">📞</div>
+    </div>
+  </div>
+
+  <!-- Emergency call -->
+  <a class="ems">📞 Emergency Line: +91 78660 67136</a>
+</div>
+</body>
+</html>

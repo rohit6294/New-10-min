@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>10Min Rescue</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>ten_min_rescue</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+
+	<!-- ─── 10Min Rescue permissions ──────────────────────────────────── -->
+
+	<!-- Drivers and patients both need live location to match nearby ambulances. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>10Min Rescue needs your location to dispatch the nearest ambulance and to navigate drivers to patients and hospitals.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Drivers need background location to keep streaming the ambulance's position to the patient and hospital while a trip is active.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Drivers need background location to keep streaming the ambulance's position to the patient and hospital while a trip is active.</string>
+
+	<!-- For the call-style emergency alert ringtone. -->
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Optional: voice notes attached to an SOS request are recorded with the microphone.</string>
+
+	<!-- Driver uploads photos of their license / vehicle papers. -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Drivers upload photos of their licence and vehicle documents for verification.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Drivers can take photos of their licence and vehicle documents for verification.</string>
+
+	<!-- Tap-to-call patient / hospital phone numbers from inside the app. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>telprompt</string>
+		<string>comgooglemaps</string>
+		<string>maps</string>
+	</array>
+
+	<!-- Background modes needed for FCM data pushes + live location updates while
+	     a trip is in progress, even when the app is backgrounded. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>location</string>
+		<string>remote-notification</string>
+		<string>audio</string>
+	</array>
+
+	<!-- APNs environment (production by default; Codemagic overrides to development
+	     for TestFlight if needed via build settings). -->
+	<key>aps-environment</key>
+	<string>production</string>
+
+	<!-- Allow http only to the local Firebase emulator host (dev builds). -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+</dict>
+</plist>
