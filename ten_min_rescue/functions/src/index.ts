@@ -12,3 +12,4 @@ export { onHospitalTimeout } from "./onHospitalTimeout";
 export { onRequestCompleted } from "./onRequestCompleted";
 export { updateDriverLocation } from "./updateDriverLocation";
 export { joinFleetByCode } from "./joinFleetByCode";
+export { adminCreateAccount } from "./adminCreateAccount";

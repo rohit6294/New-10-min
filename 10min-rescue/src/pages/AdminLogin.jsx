@@ -62,7 +62,7 @@ export default function AdminLogin() {
               </svg>
             </div>
             <span className="text-2xl font-bold text-white">
-              10Min<span className="text-emergency">Rescue</span>
+              Suraksha<span className="text-emergency"> Kavach</span>
             </span>
           </div>
           <h1 className="text-2xl font-bold text-white">Admin Panel</h1>

@@ -28,6 +28,16 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/ambulance_fleets/$(request.auth.uid));
     }
 
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ── admins/{uid} ──────────────────────────────────────────────────────────
+    match /admins/{uid} {
+      allow read: if isSignedIn() && isOwner(uid);
+    }
+
     function changedKeys() {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
@@ -45,6 +55,8 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && isOwner(uid);
       // Hospitals can read driver profiles (for tracking).
       allow read: if isHospital();
+      // Admins have full access to manage all drivers.
+      allow read, write: if isAdmin();
       // Fleet admins can read all drivers (needed to search by phone before
       // linking) and can update fleetId/fleetName on a driver that either
       // belongs to them or is unaffiliated. Restricted to those keys only.
@@ -61,6 +73,8 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && isOwner(uid);
       // Drivers can read hospital profiles (bed availability + navigation).
       allow read: if isDriver();
+      // Admins have full access to manage all hospitals.
+      allow read, write: if isAdmin();
     }
 
     // ── ambulance_fleets/{fleetUid} ───────────────────────────────────────────
@@ -74,6 +88,8 @@ service cloud.firestore {
           'joinCode', 'joinCodeUpdatedAt',
           'name', 'contactPerson', 'phone', 'email', 'address', 'updatedAt'
         ]);
+      // Admins have full access to manage all fleets.
+      allow read, write: if isAdmin();
     }
 
     // ── rescue_requests/{requestId} ───────────────────────────────────────────
@@ -91,7 +107,7 @@ service cloud.firestore {
       // (fleet admins additionally narrow their queries by `assignedDriverId
       // in <their drivers>` client-side).
       allow get: if true;
-      allow list: if isDriver() || isHospital() || isFleetAdmin();
+      allow list: if isDriver() || isHospital() || isFleetAdmin() || isAdmin();
 
       // A driver can claim an unassigned request and progress their trip.
       allow update: if isDriver()
@@ -130,7 +146,14 @@ service cloud.firestore {
     // Legacy collection — superseded by rescue_requests. Kept readable so any
     // in-flight legacy listeners do not error during the transition.
     match /sos_requests/{sosId} {
-      allow read: if isDriver() || isHospital();
+      allow read: if isDriver() || isHospital() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── callback_requests/{cbId} ─────────────────────────────────────────────
+    match /callback_requests/{cbId} {
+      allow read, write: if isAdmin();
+      allow create: if true; // public callback form
     }
   }
 }

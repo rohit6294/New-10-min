@@ -6,9 +6,11 @@ import {
   doc,
   onSnapshot,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   addDoc,
 } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import { auth, db } from '../firebase'
 import AdminStatsBar from '../components/admin/AdminStatsBar'
 import DriverVerificationCard from '../components/admin/DriverVerificationCard'
@@ -80,7 +82,7 @@ function TabButton({ active, onClick, children, badge }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-const TABS = ['Pending Verification', 'All Drivers', 'Hospitals', 'All Requests', '🚨 SOS Requests', '📞 Callbacks']
+const TABS = ['Pending Verification', 'All Drivers', 'Hospitals', 'Fleets', 'All Requests', '🚨 SOS Requests', '📞 Callbacks', '⚙️ Create Account']
 
 export default function AdminDashboard() {
   const navigate = useNavigate()
@@ -91,6 +93,7 @@ export default function AdminDashboard() {
   const [requests, setRequests]     = useState([])
   const [sosRequests, setSosRequests] = useState([])
   const [callbacks, setCallbacks] = useState([])
+  const [fleets, setFleets]         = useState([])
   const [dataLoading, setDataLoading] = useState(true)
 
   const [activeTab, setActiveTab]   = useState(0)
@@ -125,7 +128,7 @@ export default function AdminDashboard() {
     const respondedCollections = new Set()
     const markResponded = (name) => {
       respondedCollections.add(name)
-      if (respondedCollections.size >= 5) setDataLoading(false)
+      if (respondedCollections.size >= 6) setDataLoading(false)
     }
 
     // Safety: if any stream is slow/silently broken, force UI to render after 6s
@@ -176,15 +179,25 @@ export default function AdminDashboard() {
         markResponded('callback_requests')
       },
       err => {
-        // Likely Firestore rules blocking new collection. Don't hang the UI.
         console.error('callback_requests stream (likely rules issue):', err)
         markResponded('callback_requests')
+      }
+    )
+    const unsubFleets = onSnapshot(
+      collection(db, 'ambulance_fleets'),
+      snap => {
+        setFleets(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+        markResponded('ambulance_fleets')
+      },
+      err => {
+        console.error('ambulance_fleets stream:', err)
+        markResponded('ambulance_fleets')
       }
     )
 
     return () => {
       clearTimeout(safetyTimer)
-      unsubDrivers(); unsubHospitals(); unsubRequests(); unsubSos(); unsubCB()
+      unsubDrivers(); unsubHospitals(); unsubRequests(); unsubSos(); unsubCB(); unsubFleets()
     }
   }, [authLoading])
 
@@ -364,8 +377,8 @@ export default function AdminDashboard() {
                   onClick={() => setActiveTab(i)}
                   badge={
                     i === 0 ? pendingDrivers.length
-                    : i === 4 ? sosRequests.filter(s => s.status === 'pending').length
-                    : i === 5 ? callbacks.filter(c => c.status === 'pending_call').length
+                    : i === 5 ? sosRequests.filter(s => s.status === 'pending').length
+                    : i === 6 ? callbacks.filter(c => c.status === 'pending_call').length
                     : undefined
                   }
                 >
@@ -577,8 +590,72 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ── Tab 4: SOS Requests ── */}
-            {activeTab === 4 && (
+            {/* ── Tab 3: Fleets ── */}
+            {activeTab === 3 && (
+              <div>
+                {dataLoading ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+                  </div>
+                ) : fleets.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-500 font-medium">No fleets registered yet.</p>
+                    <p className="text-gray-400 text-sm mt-1">Create one from the ⚙️ Create Account tab.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto -mx-4 sm:-mx-6">
+                    <table className="w-full text-sm min-w-[780px]">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-4 sm:px-6 pb-3">Fleet Name</th>
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-3">Contact</th>
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-3">Phone</th>
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-3">Join Code</th>
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-3">Drivers</th>
+                          <th className="text-left text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 pb-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {fleets.map(fleet => {
+                          const linkedDrivers = drivers.filter(d => d.fleetId === fleet.id)
+                          return (
+                            <tr key={fleet.id} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 sm:px-6 py-3">
+                                <div className="font-medium text-navy">{fleet.name || '—'}</div>
+                                <div className="text-xs text-gray-400">{fleet.email || '—'}</div>
+                              </td>
+                              <td className="px-3 py-3 text-gray-600 text-xs">{fleet.contactPerson || '—'}</td>
+                              <td className="px-3 py-3 text-gray-600 text-xs">{fleet.phone || '—'}</td>
+                              <td className="px-3 py-3">
+                                {fleet.joinCode ? (
+                                  <span className="font-mono text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded-lg font-bold tracking-widest">{fleet.joinCode}</span>
+                                ) : <span className="text-gray-300 text-xs">Not set</span>}
+                              </td>
+                              <td className="px-3 py-3">
+                                <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2 py-1 rounded-full">{linkedDrivers.length}</span>
+                              </td>
+                              <td className="px-3 py-3">
+                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${fleet.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                  {fleet.isActive !== false ? 'Active' : 'Inactive'}
+                                </span>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Tab 5: SOS Requests ── */}
+            {activeTab === 5 && (
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm text-gray-500">
@@ -672,8 +749,8 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ── Tab 3: All Requests ── */}
-            {activeTab === 3 && (
+            {/* ── Tab 4: All Requests ── */}
+            {activeTab === 4 && (
               <div>
                 {dataLoading ? (
                   <div className="space-y-3">
@@ -723,13 +800,22 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {/* ── Tab 5: Callbacks ── */}
-            {activeTab === 5 && (
+            {/* ── Tab 6: Callbacks ── */}
+            {activeTab === 6 && (
               <CallbacksTab
                 callbacks={callbacks}
                 drivers={drivers}
                 hospitals={hospitals}
                 formatTime={formatTime}
+              />
+            )}
+
+            {/* ── Tab 7: Create Account ── */}
+            {activeTab === 7 && (
+              <CreateAccountTab
+                drivers={drivers}
+                hospitals={hospitals}
+                fleets={fleets}
               />
             )}
           </div>
@@ -1048,6 +1134,255 @@ function NewCallbackModal({ onClose }) {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── Create Account Tab ───────────────────────────────────────────────────
+
+function CreateAccountTab({ drivers, hospitals, fleets }) {
+  const [accountType, setAccountType] = useState('hospital')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [address, setAddress] = useState('')
+  const [contactPerson, setContactPerson] = useState('')
+  const [vehicleNumber, setVehicleNumber] = useState('')
+  const [vehicleType, setVehicleType] = useState('BLS')
+  const [icuBeds, setIcuBeds] = useState(0)
+  const [advancedBeds, setAdvancedBeds] = useState(0)
+  const [normalBeds, setNormalBeds] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [result, setResult] = useState(null) // { success, message } or { error }
+
+  function resetForm() {
+    setEmail(''); setPassword(''); setDisplayName(''); setPhone('')
+    setAddress(''); setContactPerson(''); setVehicleNumber('')
+    setVehicleType('BLS'); setIcuBeds(0); setAdvancedBeds(0); setNormalBeds(0)
+  }
+
+  async function handleCreate(e) {
+    e.preventDefault()
+    if (!email || !password || !displayName) return
+    setSaving(true)
+    setResult(null)
+    try {
+      const functions = getFunctions(undefined, 'asia-south1')
+      const createAccount = httpsCallable(functions, 'adminCreateAccount')
+      const payload = {
+        accountType, email, password, displayName, phone,
+        ...(accountType === 'hospital' && { address, icuBeds: Number(icuBeds), advancedBeds: Number(advancedBeds), normalBeds: Number(normalBeds) }),
+        ...(accountType === 'fleet' && { contactPerson: contactPerson || displayName, address }),
+        ...(accountType === 'driver' && { vehicleNumber, vehicleType }),
+      }
+      const res = await createAccount(payload)
+      setResult({ success: true, message: res.data.message })
+      resetForm()
+    } catch (err) {
+      setResult({ error: err.message || 'Failed to create account.' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const ACCOUNT_TYPES = [
+    { key: 'hospital', label: 'Hospital', icon: '🏥', color: 'red', desc: 'Emergency hospital that receives patients' },
+    { key: 'fleet', label: 'Fleet / NGO', icon: '🚑', color: 'blue', desc: 'Ambulance fleet that manages drivers' },
+    { key: 'driver', label: 'Driver', icon: '👨‍⚕️', color: 'green', desc: 'Individual ambulance driver' },
+  ]
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Stats summary */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-red-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-red-600">{hospitals.length}</div>
+          <div className="text-xs text-red-500 font-medium">Hospitals</div>
+        </div>
+        <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-blue-600">{fleets.length}</div>
+          <div className="text-xs text-blue-500 font-medium">Fleets</div>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-bold text-green-600">{drivers.length}</div>
+          <div className="text-xs text-green-500 font-medium">Drivers</div>
+        </div>
+      </div>
+
+      {/* Account type selector */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        {ACCOUNT_TYPES.map(t => (
+          <button
+            key={t.key}
+            onClick={() => { setAccountType(t.key); setResult(null) }}
+            className={`rounded-2xl p-4 text-left border-2 transition-all ${
+              accountType === t.key
+                ? `border-${t.color}-500 bg-${t.color}-50 shadow-sm`
+                : 'border-gray-100 hover:border-gray-200 bg-white'
+            }`}
+          >
+            <div className="text-2xl mb-1">{t.icon}</div>
+            <div className={`font-bold text-sm ${accountType === t.key ? `text-${t.color}-700` : 'text-navy'}`}>{t.label}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{t.desc}</div>
+          </button>
+        ))}
+      </div>
+
+      {/* Create form */}
+      <form onSubmit={handleCreate} className="bg-white border border-gray-100 rounded-2xl p-6 space-y-4">
+        <h3 className="font-bold text-navy text-lg flex items-center gap-2">
+          {ACCOUNT_TYPES.find(t => t.key === accountType)?.icon}
+          Create {ACCOUNT_TYPES.find(t => t.key === accountType)?.label} Account
+        </h3>
+
+        {result && (
+          <div className={`rounded-xl px-4 py-3 text-sm ${
+            result.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>
+            {result.success ? '✅ ' : '❌ '}{result.message || result.error}
+          </div>
+        )}
+
+        {/* Common fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">
+              {accountType === 'hospital' ? 'Hospital Name' : accountType === 'fleet' ? 'Fleet / NGO Name' : 'Driver Name'} *
+            </label>
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} required
+              placeholder={accountType === 'hospital' ? 'City General Hospital' : accountType === 'fleet' ? 'Red Cross Ambulance' : 'Rahul Kumar'}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Email *</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+              placeholder="account@example.com"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Password *</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              placeholder="Min 6 characters" minLength={6}
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Phone</label>
+            <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+              placeholder="+91 9876543210"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+          </div>
+        </div>
+
+        {/* Hospital-specific fields */}
+        {accountType === 'hospital' && (
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400">Hospital Details</h4>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
+              <input value={address} onChange={e => setAddress(e.target.value)}
+                placeholder="123 Medical Lane, City"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-red-600 mb-1">ICU Beds</label>
+                <input type="number" min="0" value={icuBeds} onChange={e => setIcuBeds(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-amber-600 mb-1">Advanced Beds</label>
+                <input type="number" min="0" value={advancedBeds} onChange={e => setAdvancedBeds(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-green-600 mb-1">Normal Beds</label>
+                <input type="number" min="0" value={normalBeds} onChange={e => setNormalBeds(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Fleet-specific fields */}
+        {accountType === 'fleet' && (
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400">Fleet Details</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Contact Person</label>
+                <input value={contactPerson} onChange={e => setContactPerson(e.target.value)}
+                  placeholder="Fleet manager name"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
+                <input value={address} onChange={e => setAddress(e.target.value)}
+                  placeholder="Office address"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Driver-specific fields */}
+        {accountType === 'driver' && (
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400">Driver Details</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Vehicle Number</label>
+                <input value={vehicleNumber} onChange={e => setVehicleNumber(e.target.value)}
+                  placeholder="MH 01 AB 1234"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Vehicle Type</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {['BLS', 'ALS', 'Patient Transport'].map(t => (
+                    <button key={t} type="button" onClick={() => setVehicleType(t)}
+                      className={`py-2 rounded-lg font-semibold text-xs border-2 transition-colors ${
+                        vehicleType === t ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Admin-created drivers are auto-verified. No document upload needed.
+            </p>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={saving || !email || !password || !displayName}
+          className="w-full bg-navy hover:bg-navy-light text-white font-bold py-3 rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {saving ? (
+            <>
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Creating Account...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Create {ACCOUNT_TYPES.find(t => t.key === accountType)?.label} Account
+            </>
+          )}
+        </button>
+      </form>
     </div>
   )
 }
