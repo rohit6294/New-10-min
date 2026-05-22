@@ -24,14 +24,36 @@ class FirestoreService {
       .snapshots()
       .map(DriverModel.fromFirestore);
 
-  Future<void> setDriverOnline(String uid, bool isOnline) =>
-      _db.doc(FirestorePaths.driver(uid)).set(
-        {
-          'isOnline': isOnline,
-          'isAvailable': isOnline,
-        },
-        SetOptions(merge: true),
-      );
+  Future<void> setDriverOnline(String uid, bool isOnline) async {
+    final updates = <String, dynamic>{
+      'isOnline': isOnline,
+      'isAvailable': isOnline,
+    };
+
+    // When going online, capture current GPS position and write
+    // location + geohash so Cloud Functions can find this driver.
+    if (isOnline) {
+      try {
+        final position = await LocationService().getCurrentPosition();
+        if (position != null) {
+          updates['location'] =
+              GeoPoint(position.latitude, position.longitude);
+          updates['geohash'] = LocationService.encodeGeohash(
+              position.latitude, position.longitude);
+          updates['lastLocationUpdate'] = FieldValue.serverTimestamp();
+        }
+      } catch (_) {
+        // Best-effort: driver goes online even without location.
+        // The backup Firestore listener in the app still works.
+      }
+    }
+
+    await _db.doc(FirestorePaths.driver(uid)).set(
+      updates,
+      SetOptions(merge: true),
+    );
+  }
+
 
   // ─── Hospital ─────────────────────────────────────────────────────────────
 

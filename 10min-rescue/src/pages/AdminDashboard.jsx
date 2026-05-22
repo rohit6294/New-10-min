@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import {
@@ -1147,6 +1147,8 @@ function CreateAccountTab({ drivers, hospitals, fleets }) {
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
   const [address, setAddress] = useState('')
+  const [locationCoords, setLocationCoords] = useState(null) // { lat, lng }
+  const [showMapPicker, setShowMapPicker] = useState(false)
   const [contactPerson, setContactPerson] = useState('')
   const [vehicleNumber, setVehicleNumber] = useState('')
   const [vehicleType, setVehicleType] = useState('BLS')
@@ -1160,6 +1162,7 @@ function CreateAccountTab({ drivers, hospitals, fleets }) {
     setEmail(''); setPassword(''); setDisplayName(''); setPhone('')
     setAddress(''); setContactPerson(''); setVehicleNumber('')
     setVehicleType('BLS'); setIcuBeds(0); setAdvancedBeds(0); setNormalBeds(0)
+    setLocationCoords(null)
   }
 
   async function handleCreate(e) {
@@ -1172,7 +1175,13 @@ function CreateAccountTab({ drivers, hospitals, fleets }) {
       const createAccount = httpsCallable(functions, 'adminCreateAccount')
       const payload = {
         accountType, email, password, displayName, phone,
-        ...(accountType === 'hospital' && { address, icuBeds: Number(icuBeds), advancedBeds: Number(advancedBeds), normalBeds: Number(normalBeds) }),
+        ...(accountType === 'hospital' && {
+          address,
+          icuBeds: Number(icuBeds),
+          advancedBeds: Number(advancedBeds),
+          normalBeds: Number(normalBeds),
+          ...(locationCoords && { latitude: locationCoords.lat, longitude: locationCoords.lng }),
+        }),
         ...(accountType === 'fleet' && { contactPerson: contactPerson || displayName, address }),
         ...(accountType === 'driver' && { vehicleNumber, vehicleType }),
       }
@@ -1279,11 +1288,42 @@ function CreateAccountTab({ drivers, hospitals, fleets }) {
           <div className="space-y-3 pt-2 border-t border-gray-100">
             <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400">Hospital Details</h4>
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Address</label>
-              <input value={address} onChange={e => setAddress(e.target.value)}
-                placeholder="123 Medical Lane, City"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Address & Location</label>
+              <div className="flex gap-2">
+                <input value={address} onChange={e => setAddress(e.target.value)}
+                  placeholder="Search or type address..."
+                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-navy focus:outline-none focus:border-brand-red" />
+                <button type="button" onClick={() => setShowMapPicker(true)}
+                  className="shrink-0 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold px-4 py-2.5 rounded-xl border border-blue-200 transition-colors flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                  </svg>
+                  Pick on Map
+                </button>
+              </div>
+              {locationCoords && (
+                <div className="mt-2 flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-xs text-green-700 font-medium">Location set: {locationCoords.lat.toFixed(5)}, {locationCoords.lng.toFixed(5)}</span>
+                  <button type="button" onClick={() => setLocationCoords(null)} className="ml-auto text-green-500 hover:text-red-500">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
+            {showMapPicker && (
+              <LocationPickerModal
+                initialAddress={address}
+                initialCoords={locationCoords}
+                onConfirm={(addr, coords) => { setAddress(addr); setLocationCoords(coords); setShowMapPicker(false) }}
+                onClose={() => setShowMapPicker(false)}
+              />
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-red-600 mb-1">ICU Beds</label>
@@ -1383,6 +1423,213 @@ function CreateAccountTab({ drivers, hospitals, fleets }) {
           )}
         </button>
       </form>
+    </div>
+  )
+}
+
+// ─── Location Picker Modal ───────────────────────────────────────────────
+
+function LocationPickerModal({ initialAddress, initialCoords, onConfirm, onClose }) {
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+  const markerRef = useRef(null)
+  const [searchQuery, setSearchQuery] = useState(initialAddress || '')
+  const [searchResults, setSearchResults] = useState([])
+  const [searching, setSearching] = useState(false)
+  const [selectedCoords, setSelectedCoords] = useState(initialCoords || { lat: 20.5937, lng: 78.9629 }) // Default: India center
+  const [selectedAddress, setSelectedAddress] = useState(initialAddress || '')
+  const [zoom, setZoom] = useState(initialCoords ? 16 : 5)
+
+  // Load Leaflet CSS
+  useEffect(() => {
+    if (!document.getElementById('leaflet-css-admin')) {
+      const link = document.createElement('link')
+      link.id = 'leaflet-css-admin'
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(link)
+    }
+  }, [])
+
+  // Initialize map
+  useEffect(() => {
+    let cancelled = false
+    const initMap = async () => {
+      const L = await import('leaflet')
+      if (cancelled || !mapRef.current) return
+
+      // Fix default marker icons
+      delete L.Icon.Default.prototype._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      })
+
+      const map = L.map(mapRef.current).setView([selectedCoords.lat, selectedCoords.lng], zoom)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map)
+
+      const marker = L.marker([selectedCoords.lat, selectedCoords.lng], { draggable: true }).addTo(map)
+
+      marker.on('dragend', () => {
+        const pos = marker.getLatLng()
+        setSelectedCoords({ lat: pos.lat, lng: pos.lng })
+        reverseGeocode(pos.lat, pos.lng)
+      })
+
+      map.on('click', (e) => {
+        marker.setLatLng(e.latlng)
+        setSelectedCoords({ lat: e.latlng.lat, lng: e.latlng.lng })
+        reverseGeocode(e.latlng.lat, e.latlng.lng)
+      })
+
+      mapInstanceRef.current = map
+      markerRef.current = marker
+
+      // Auto-resize fix
+      setTimeout(() => map.invalidateSize(), 100)
+    }
+    initMap()
+    return () => { cancelled = true; mapInstanceRef.current?.remove() }
+  }, [])
+
+  const reverseGeocode = useCallback(async (lat, lng) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18`)
+      const data = await res.json()
+      if (data.display_name) {
+        setSelectedAddress(data.display_name)
+        setSearchQuery(data.display_name)
+      }
+    } catch (_) {}
+  }, [])
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return
+    setSearching(true)
+    setSearchResults([])
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=in`)
+      const data = await res.json()
+      setSearchResults(data)
+    } catch (_) {
+      setSearchResults([])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const selectSearchResult = (result) => {
+    const lat = parseFloat(result.lat)
+    const lng = parseFloat(result.lon)
+    setSelectedCoords({ lat, lng })
+    setSelectedAddress(result.display_name)
+    setSearchQuery(result.display_name)
+    setSearchResults([])
+    if (mapInstanceRef.current && markerRef.current) {
+      mapInstanceRef.current.setView([lat, lng], 17)
+      markerRef.current.setLatLng([lat, lng])
+    }
+  }
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        setSelectedCoords({ lat, lng })
+        if (mapInstanceRef.current && markerRef.current) {
+          mapInstanceRef.current.setView([lat, lng], 16)
+          markerRef.current.setLatLng([lat, lng])
+        }
+        reverseGeocode(lat, lng)
+      },
+      () => {}
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-[999] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-navy text-lg">📍 Pick Hospital Location</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Search address, then drag the pin to exact spot</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center">
+            <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Search bar */}
+        <div className="px-6 py-3 border-b border-gray-50">
+          <div className="flex gap-2">
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="Search hospital name or address..."
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-navy focus:outline-none focus:border-blue-500"
+            />
+            <button onClick={handleSearch} disabled={searching}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm disabled:opacity-60">
+              {searching ? '...' : '🔍 Search'}
+            </button>
+            <button onClick={handleUseMyLocation} title="Use my location"
+              className="bg-green-50 hover:bg-green-100 text-green-700 font-semibold px-3 py-2.5 rounded-xl border border-green-200">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Search results dropdown */}
+          {searchResults.length > 0 && (
+            <div className="mt-2 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+              {searchResults.map((r, i) => (
+                <button key={i} onClick={() => selectSearchResult(r)}
+                  className="w-full text-left px-4 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-0 transition-colors">
+                  <div className="text-sm text-navy font-medium truncate">{r.display_name}</div>
+                  <div className="text-xs text-gray-400">{parseFloat(r.lat).toFixed(5)}, {parseFloat(r.lon).toFixed(5)}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Map */}
+        <div ref={mapRef} className="flex-1 min-h-[350px]" style={{ cursor: 'crosshair' }} />
+
+        {/* Footer with coordinates + confirm */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <div className="text-xs text-gray-400 font-medium">Selected Location</div>
+              <div className="text-sm text-navy font-mono font-bold">{selectedCoords.lat.toFixed(6)}, {selectedCoords.lng.toFixed(6)}</div>
+              {selectedAddress && <div className="text-xs text-gray-500 mt-0.5 truncate max-w-xs">{selectedAddress}</div>}
+            </div>
+            <button onClick={onClose} className="border-2 border-gray-200 text-gray-600 font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-100">
+              Cancel
+            </button>
+            <button
+              onClick={() => onConfirm(selectedAddress || searchQuery, selectedCoords)}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              Confirm Location
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

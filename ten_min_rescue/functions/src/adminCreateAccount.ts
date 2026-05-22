@@ -11,6 +11,8 @@ interface CreateAccountData {
   phone?: string;
   // Hospital-specific
   address?: string;
+  latitude?: number;
+  longitude?: number;
   icuBeds?: number;
   advancedBeds?: number;
   normalBeds?: number;
@@ -86,7 +88,7 @@ export const adminCreateAccount = functions
 
       // ── Create the entity-specific document ──
       if (accountType === "hospital") {
-        await db.doc(`hospitals/${uid}`).set({
+        const hospitalData: any = {
           name: displayName,
           email,
           phone: data.phone || "",
@@ -101,7 +103,15 @@ export const adminCreateAccount = functions
           rating: 0,
           createdAt: now,
           createdBy: context.auth.uid,
-        });
+        };
+        // Store GeoPoint if lat/lng provided from map picker
+        if (data.latitude != null && data.longitude != null) {
+          hospitalData.location = new admin.firestore.GeoPoint(
+            data.latitude,
+            data.longitude
+          );
+        }
+        await db.doc(`hospitals/${uid}`).set(hospitalData);
       } else if (accountType === "fleet") {
         await db.doc(`ambulance_fleets/${uid}`).set({
           name: displayName,
